@@ -1,0 +1,10 @@
+spring.application.name=
+spring.jpa.hibernate.ddl-auto=
+spring.datasource.url=
+spring.datasource.username=
+spring.datasource.password=
+server.servlet.context-path=
+server.port=
+spring.cloud.openfeign.client.config.appointment-service.url=
+spring.sql.init.mode=
+spring.jpa.defer-datasource-initialization=

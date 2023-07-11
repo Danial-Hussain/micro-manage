@@ -1,0 +1,84 @@
+version: "3.8"
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8082:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - app-network
+    depends_on:
+      - user-service
+      - appointment-service
+      - app-management-service
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command: "http --domain=${NGROK_DOMAIN} nginx:8082"
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTH}
+      - NGROK_DOMAIN=${NGROK_DOMAIN}
+    depends_on:
+      - nginx
+    ports:
+      - 4040:4040
+    networks:
+      - app-network
+
+  user-service:
+    build:
+      context: ./user-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres-user
+      - SPRING_DATASOURCE_PASSWORD=postgres-pass
+      - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_APPOINTMENT_SERVICE_URL=http://appointment-service:8081
+    networks:
+      - app-network
+
+  appointment-service:
+    build:
+      context: ./appointment-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - user-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres-user
+      - SPRING_DATASOURCE_PASSWORD=postgres-pass
+      - SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_USER_SERVICE_URL=http://user-service:8080
+      - SPRING_SQL_INIT_MODE=always
+      - SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION=true
+    networks:
+      - app-network
+
+  app-management-service:
+    build:
+      context: ./app-management-service
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    environment:
+      - SERVER_FORWARD_HEADERS_STRATEGY=native
+
+  postgres:
+    image: "postgres:13.1-alpine"
+    environment:
+      - POSTGRES_USER=postgres-user
+      - POSTGRES_PASSWORD=postgres-pass
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
